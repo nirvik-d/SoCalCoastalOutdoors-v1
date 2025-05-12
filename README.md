@@ -8,7 +8,7 @@ This project uses Esri's ArcGIS Maps SDK for JavaScript (v4.32), Calcite Design 
 
 - **Select a beach town or city** using a Calcite dropdown panel
 - **Zoom to the city boundary polygon** with accurate feature layer data
-- **Click anywhere inside the polygon** to find landmarks and outdoor POIs within 500 meters (using Esri’s Places service)
+- **Click anywhere inside the polygon** to find landmarks and outdoor POIs (using Esri’s Places service)
 - **Filter out duplicate polygons** for better performance and visual clarity
 - **Unit tested with Vitest**, including map logic and component behavior
 - **CI/CD** setup with GitHub Actions
