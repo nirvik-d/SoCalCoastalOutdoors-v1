@@ -24,14 +24,16 @@ function App() {
   }
 
   return (
-    <>
-      <AuthenticateEsriAPI />
-      <FetchFeatureLayers
-        mapRef={mapRef}
-        layerRef={layerRef}
-        isLoadingComplete={handleLoadingComplete}
-      />
-      <calcite-shell>
+    <calcite-shell>
+      <>
+        <AuthenticateEsriAPI />
+        {console.log("Authentication complete.")}
+        <FetchFeatureLayers
+          mapRef={mapRef}
+          layerRef={layerRef}
+          isLoadingComplete={handleLoadingComplete}
+        />
+        {console.log("Layer fetching complete.")}
         <RenderMap
           mapType="arcgis/topographic"
           mapCenter={[-117.9988, 33.6595]}
@@ -40,16 +42,19 @@ function App() {
           mapViewRef={mapViewRef}
           isDrawingComplete={handleDrawingComplete}
         />
-
+        {console.log("Map rendering complete.")}
         {isLoadingComplete && isDrawingComplete && (
           <>
             <DisplayCoastalPlaces mapRef={mapRef} layerRef={layerRef} />
+            {console.log("Coastal places display complete.")}
             <RenderCalciteUI mapViewRef={mapViewRef} layerRef={layerRef} />
+            {console.log("Calcite UI rendering complete.")}
             <DisplayOutdoors mapRef={mapRef} mapViewRef={mapViewRef} />
+            {console.log("Outdoor display complete.")}
           </>
         )}
-      </calcite-shell>
-    </>
+      </>
+    </calcite-shell>
   );
 }
 

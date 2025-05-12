@@ -26,18 +26,58 @@ export function FetchFeatureLayers({
         definitionExpression: `COUNTY IN ('Santa Barbara', 'Ventura', 'Los Angeles', 'Orange', 'San Diego', 'San Luis Obispo', 'Imperial')`,
       });
 
+      const coastalBufferLayer = new FeatureLayer({
+        url: "https://services3.arcgis.com/uknczv4rpevve42E/arcgis/rest/services/California_Cartographic_Coastal_Polygons/FeatureServer/31",
+        definitionExpression: "OFFSHORE IS NOT NULL",
+        outFields: ["*"],
+      });
+
       const coastalCitiesLayer = new FeatureLayer({
         url: "https://services3.arcgis.com/uknczv4rpevve42E/arcgis/rest/services/California_Cities_and_Identifiers_Blue_Version_view/FeatureServer/2/",
         outFields: ["*"],
       });
 
       await beachAccessPoints.load();
+      await coastalBufferLayer.load();
       await coastalCitiesLayer.load();
+
+      const coastalBufferResult = await coastalBufferLayer.queryFeatures();
+      if (!coastalBufferResult.features.length) {
+        console.error("No coastal buffer found!");
+        return;
+      }
 
       const beachAccessResult = await beachAccessPoints.queryFeatures();
       if (!beachAccessResult.features.length) {
         console.error("No beach access found!");
         return;
+      }
+
+      for (const coastalBufferFeature of coastalBufferResult.features) {
+        const coastalCitiesResult = await coastalCitiesLayer.queryFeatures({
+          where:
+            "CDTFA_COUNTY in ('Santa Barbara County', 'Ventura County', 'Los Angeles County', 'Orange County', 'San Diego County', 'San Luis Obispo County', 'Imperial County')",
+          geometry: coastalBufferFeature.geometry,
+          spatialRelationship: "intersects",
+          returnGeometry: true,
+          outFields: ["*"],
+        });
+
+        const filteredCityFeatures = coastalCitiesResult.features.filter(
+          (feature) => {
+            const cityName = feature.attributes.CDTFA_CITY;
+
+            if (alreadyExists.has(cityName)) {
+              return false;
+            } else {
+              alreadyExists.add(cityName);
+              return true;
+            }
+          }
+        );
+
+        const coastalCitiesGraphics = createPlaceGraphics(filteredCityFeatures);
+        coastalCitiesGraphicsLayer.addMany(coastalCitiesGraphics);
       }
 
       for (const beachAccessFeature of beachAccessResult.features) {
