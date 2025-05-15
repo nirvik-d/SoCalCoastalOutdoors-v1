@@ -9,8 +9,6 @@ interface DisplayFeatureLayersProps {
   isLoadingComplete: (complete: boolean) => void;
 }
 
-const alreadyExists = new Set<any>();
-
 export function FetchFeatureLayers({
   mapRef,
   layerRef,
@@ -27,8 +25,9 @@ export function FetchFeatureLayers({
       });
 
       const coastalBufferLayer = new FeatureLayer({
-        url: "https://services3.arcgis.com/uknczv4rpevve42E/arcgis/rest/services/California_Cartographic_Coastal_Polygons/FeatureServer/31",
-        definitionExpression: "OFFSHORE IS NOT NULL",
+        url: "https://services3.arcgis.com/uknczv4rpevve42E/arcgis/rest/services/California_County_Boundaries_and_Identifiers_with_Coastal_Buffers/FeatureServer/1",
+        definitionExpression:
+          "OFFSHORE IS NOT NULL AND CDTFA_COUNTY in ('Santa Barbara County', 'Ventura County', 'Los Angeles County', 'Orange County', 'San Diego County', 'San Luis Obispo County', 'Imperial County')",
         outFields: ["*"],
       });
 
@@ -37,75 +36,56 @@ export function FetchFeatureLayers({
         outFields: ["*"],
       });
 
-      await beachAccessPoints.load();
-      await coastalBufferLayer.load();
-      await coastalCitiesLayer.load();
+      beachAccessPoints.load();
+      coastalBufferLayer.load();
+      coastalCitiesLayer.load();
 
-      const coastalBufferResult = await coastalBufferLayer.queryFeatures();
-      if (!coastalBufferResult.features.length) {
-        console.error("No coastal buffer found!");
-        return;
-      }
+      const [coastalBufferResult, beachAccessResult] = await Promise.all([
+        coastalBufferLayer.queryFeatures(),
+        beachAccessPoints.queryFeatures(),
+      ]);
 
-      const beachAccessResult = await beachAccessPoints.queryFeatures();
-      if (!beachAccessResult.features.length) {
-        console.error("No beach access found!");
-        return;
-      }
+      const coastalCitiesResult = [];
 
-      for (const coastalBufferFeature of coastalBufferResult.features) {
-        const coastalCitiesResult = await coastalCitiesLayer.queryFeatures({
-          where:
-            "CDTFA_COUNTY in ('Santa Barbara County', 'Ventura County', 'Los Angeles County', 'Orange County', 'San Diego County', 'San Luis Obispo County', 'Imperial County')",
-          geometry: coastalBufferFeature.geometry,
-          spatialRelationship: "intersects",
-          returnGeometry: true,
-          outFields: ["*"],
-        });
-
-        const filteredCityFeatures = coastalCitiesResult.features.filter(
-          (feature) => {
-            const cityName = feature.attributes.CDTFA_CITY;
-
-            if (alreadyExists.has(cityName)) {
-              return false;
-            } else {
-              alreadyExists.add(cityName);
-              return true;
-            }
-          }
+      for (const feature of coastalBufferResult.features) {
+        coastalCitiesResult.push(
+          coastalCitiesLayer.queryFeatures({
+            geometry: feature.geometry,
+            spatialRelationship: "intersects",
+            returnGeometry: true,
+            outFields: ["*"],
+          })
         );
-
-        const coastalCitiesGraphics = createPlaceGraphics(filteredCityFeatures);
-        coastalCitiesGraphicsLayer.addMany(coastalCitiesGraphics);
       }
 
-      for (const beachAccessFeature of beachAccessResult.features) {
-        const coastalCitiesResult = await coastalCitiesLayer.queryFeatures({
-          where:
-            "CDTFA_COUNTY in ('Santa Barbara County', 'Ventura County', 'Los Angeles County', 'Orange County', 'San Diego County', 'San Luis Obispo County', 'Imperial County')",
-          geometry: beachAccessFeature.geometry,
-          spatialRelationship: "intersects",
-          returnGeometry: true,
-          outFields: ["*"],
-        });
-
-        const filteredCityFeatures = coastalCitiesResult.features.filter(
-          (feature) => {
-            const cityName = feature.attributes.CDTFA_CITY;
-
-            if (alreadyExists.has(cityName)) {
-              return false;
-            } else {
-              alreadyExists.add(cityName);
-              return true;
-            }
-          }
+      for (const feature of beachAccessResult.features) {
+        coastalCitiesResult.push(
+          coastalCitiesLayer.queryFeatures({
+            geometry: feature.geometry,
+            spatialRelationship: "intersects",
+            returnGeometry: true,
+            outFields: ["*"],
+          })
         );
-
-        const coastalCitiesGraphics = createPlaceGraphics(filteredCityFeatures);
-        coastalCitiesGraphicsLayer.addMany(coastalCitiesGraphics);
       }
+
+      const results = await Promise.all(coastalCitiesResult);
+      const allCityFeatures = results.flatMap((r) => r.features);
+
+      const alreadyExists = new Set<any>();
+      const filteredCityFeatures = allCityFeatures.filter((feature: any) => {
+        const cityName = feature.attributes.CDTFA_CITY;
+
+        if (alreadyExists.has(cityName)) {
+          return false;
+        } else {
+          alreadyExists.add(cityName);
+          return true;
+        }
+      });
+
+      const coastalCitiesGraphics = createPlaceGraphics(filteredCityFeatures);
+      coastalCitiesGraphicsLayer.addMany(coastalCitiesGraphics);
 
       layerRef.current = coastalCitiesGraphicsLayer;
       isLoadingComplete(true);

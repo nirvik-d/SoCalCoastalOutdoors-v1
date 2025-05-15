@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import "./App.css";
 import { AuthenticateEsriAPI } from "./components/Authentication";
 import { FetchFeatureLayers } from "./components/FetchLayers";
@@ -23,17 +23,32 @@ function App() {
     setLoadingComplete(complete);
   }
 
+  console.log("Authentication complete.");
+
+  if (isLoadingComplete) {
+    console.log("Layer fetching complete.");
+  }
+
+  if (isDrawingComplete) {
+    console.log("Map rendering complete.");
+  }
+
+  if (isLoadingComplete && isDrawingComplete) {
+    console.log("Coastal places display complete.");
+    console.log("Calcite UI rendering complete.");
+    console.log("Outdoor display complete.");
+  }
+
   return (
     <calcite-shell>
       <>
         <AuthenticateEsriAPI />
-        {console.log("Authentication complete.")}
         <FetchFeatureLayers
           mapRef={mapRef}
           layerRef={layerRef}
           isLoadingComplete={handleLoadingComplete}
         />
-        {console.log("Layer fetching complete.")}
+
         <RenderMap
           mapType="arcgis/topographic"
           mapCenter={[-117.9988, 33.6595]}
@@ -42,15 +57,12 @@ function App() {
           mapViewRef={mapViewRef}
           isDrawingComplete={handleDrawingComplete}
         />
-        {console.log("Map rendering complete.")}
+
         {isLoadingComplete && isDrawingComplete && (
           <>
             <DisplayCoastalPlaces mapRef={mapRef} layerRef={layerRef} />
-            {console.log("Coastal places display complete.")}
             <RenderCalciteUI mapViewRef={mapViewRef} layerRef={layerRef} />
-            {console.log("Calcite UI rendering complete.")}
             <DisplayOutdoors mapRef={mapRef} mapViewRef={mapViewRef} />
-            {console.log("Outdoor display complete.")}
           </>
         )}
       </>
