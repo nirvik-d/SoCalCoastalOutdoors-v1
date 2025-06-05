@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import "./App.css";
 import { AuthenticateEsriAPI } from "./components/Authentication";
 import { FetchFeatureLayers } from "./components/FetchLayers";

@@ -5,6 +5,7 @@ This sample demonstrates how to create an interactive mapping application that e
 ## Use Case
 
 This application allows users to:
+
 - Select a city from a dropdown menu
 - View city boundaries on an interactive map
 - Click within city boundaries to discover nearby points of interest
@@ -20,23 +21,30 @@ This application allows users to:
 
 ### Create a New Project
 
-1. Create a new Vite project with React and TypeScript:
+1. Start by creating a Vite project.
 
    ```bash
-   npm create vite@latest SoCalCoastal-Outdoors -- --template react-ts
-   cd SoCalCoastal-Outdoors
-   npm install
+   npm create vite@latest
    ```
+
+   Follow the on-screen instructions using React and Typescript.
+
+Navigate into the project directory:
+
+```bash
+cd <your-project-name>
+npm install
+```
 
 2. Install required dependencies:
 
    ```bash
-   npm install @arcgis/core @esri/calcite-components @arcgis/map-components
+   npm install @arcgis/map-components @testing-library/react @testing-library/jest-dom jsdom vitest
    ```
 
-### Set Up the Map Component
+### Create the required components
 
-1. Create `src/components/RenderMap.tsx`:
+1. Create the RenderMap component in `src/components/RenderMap.tsx`:
 
 ```tsx
 import { useEffect } from "react";
@@ -44,6 +52,7 @@ import "@arcgis/map-components/components/arcgis-map";
 import "@arcgis/map-components/components/arcgis-zoom";
 import "@arcgis/map-components/components/arcgis-search";
 
+// State variables for Render Map
 interface RenderMapProps {
   mapType?: any;
   mapCenter?: any;
@@ -53,6 +62,7 @@ interface RenderMapProps {
   isDrawingComplete: (complete: boolean) => void;
 }
 
+// Render Map component
 export function RenderMap({
   mapType,
   mapCenter,
@@ -67,6 +77,7 @@ export function RenderMap({
   });
 
   return (
+    // Render the map
     <arcgis-map
       basemap={mapType}
       center={mapCenter}
@@ -79,367 +90,702 @@ export function RenderMap({
 }
 ```
 
-### Set Up the Application
-
-1. Create `src/components/CitySelector.tsx`:
+2. Create the Authentication component in `src/components/Authentication.tsx`:
 
 ```tsx
-// Import necessary React hooks and Calcite components
-import { useState } from 'react';
-import { CalciteSelect, CalciteSelectItem } from '@esri/calcite-components';
+// Import ArcGIS configuration
+import esriConfig from "@arcgis/core/config";
 
-// Define interface for component props
-interface CitySelectorProps {
-  cities: string[]; // Array of city names
-  onCitySelect: (city: string) => void; // Callback when city is selected
+// Authentication component
+export function AuthenticateEsriAPI() {
+  // Set the ArcGIS API key from environment variables
+  esriConfig.apiKey = import.meta.env.VITE_ARCGIS_API_KEY;
+  return null;
 }
-
-// CitySelector component that allows users to select a city
-export const CitySelector = ({ cities, onCitySelect }: CitySelectorProps) => {
-  // State to track currently selected city
-  const [selectedCity, setSelectedCity] = useState('');
-
-  // Handler for when a city is selected from the dropdown
-  const handleCityChange = (event: any) => {
-    const selected = event.target.value;
-    setSelectedCity(selected);
-    // Notify parent component of city selection
-    onCitySelect(selected);
-  };
-
-  // Render the city selector UI
-  return (
-    <div className="city-selector-container">
-      <h2>Select a City</h2>
-      {/* Calcite Select component with placeholder and city options */}
-      <CalciteSelect
-        value={selectedCity}
-        onChange={handleCityChange}
-        class="city-selector"
-        placeholder="Choose a city..."
-      >
-        {cities.map((city) => (
-          <CalciteSelectItem key={city} value={city}>
-            {city}
-          </CalciteSelectItem>
-        ))}
-      </CalciteSelect>
-    </div>
-  );
-};
 ```
 
-2. Create `src/components/PlacesList.tsx`:
+3. Create the FetchLayers component in `src/components/FetchLayers.tsx`:
 
 ```tsx
-// Import useState hook
-import { useState } from 'react';
+import { useEffect } from "react";
+import FeatureLayer from "@arcgis/core/layers/FeatureLayer";
+import GraphicsLayer from "@arcgis/core/layers/GraphicsLayer";
+import Graphic from "@arcgis/core/Graphic";
 
-// Interface for a Place object representing a point of interest
-interface Place {
-  name: string; // Name of the place
-  category: string; // Type of place (e.g., restaurant, park)
-  rating?: number; // Optional rating (0-5)
-  address?: string; // Optional address
+// State variables for Fetch Feature Layers
+interface DisplayFeatureLayersProps {
+  mapRef?: any;
+  layerRef?: any;
+  isLoadingComplete: (complete: boolean) => void;
 }
 
-// Interface for PlacesList component props
-interface PlacesListProps {
-  places: Place[]; // Array of places to display
-  loading: boolean; // Loading state
-  error?: string; // Optional error message
-}
+// Fetch Feature Layers component
+export function FetchFeatureLayers({
+  mapRef,
+  layerRef,
+  isLoadingComplete,
+}: DisplayFeatureLayersProps) {
+  useEffect(() => {
+    async function loadFeatures() {
+      // Create a new graphics layer
+      const coastalCitiesGraphicsLayer = new GraphicsLayer();
 
-// Component that displays a list of places with loading and error states
-export const PlacesList = ({ places, loading, error }: PlacesListProps) => {
-  // Render the places list with loading and error states
-  return (
-    <div className="places-list">
-      {/* Show loading indicator while fetching places */}
-      {loading && <div className="loading">Searching for places...</div>}
-      
-      {/* Display error message if something went wrong */}
-      {error && <div className="error">{error}</div>}
-      
-      {/* Render list of places */}
-      {places.map((place, index) => (
-        <div key={index} className="place-item">
-          <h3>{place.name}</h3> {/* Place name */}
-          <p>{place.category}</p> {/* Place category */}
-          {place.rating && <p>Rating: {place.rating}</p>} {/* Optional rating */}
-          {place.address && <p>Address: {place.address}</p>} {/* Optional address */}
-        </div>
-      ))}
-    </div>
-  );
-};
-```
+      // Create a new feature layer for beach access points
+      const beachAccessPoints = new FeatureLayer({
+        url: "https://services9.arcgis.com/wwVnNW92ZHUIr0V0/arcgis/rest/services/AccessPoints/FeatureServer/0/",
+        outFields: ["*"],
+        definitionExpression: `COUNTY IN ('Santa Barbara', 'Ventura', 'Los Angeles', 'Orange', 'San Diego', 'San Luis Obispo', 'Imperial')`,
+      });
 
-3. Create `src/services/placesService.ts`:
+      // Create a new feature layer for coastal buffer
+      const coastalBufferLayer = new FeatureLayer({
+        url: "https://services3.arcgis.com/uknczv4rpevve42E/arcgis/rest/services/California_County_Boundaries_and_Identifiers_with_Coastal_Buffers/FeatureServer/1",
+        definitionExpression:
+          "OFFSHORE IS NOT NULL AND CDTFA_COUNTY in ('Santa Barbara County', 'Ventura County', 'Los Angeles County', 'Orange County', 'San Diego County', 'San Luis Obispo County', 'Imperial County')",
+        outFields: ["*"],
+      });
 
-```typescript
-// Interface for a Place object representing a point of interest
-interface Place {
-  name: string; // Name of the place
-  category: string; // Type of place (e.g., restaurant, park)
-  location: {
-    latitude: number; // Geographic coordinates
-    longitude: number; // Geographic coordinates
-  };
-  rating?: number; // Optional rating (0-5)
-  address?: string; // Optional address
-}
+      // Create a new feature layer for coastal cities
+      const coastalCitiesLayer = new FeatureLayer({
+        url: "https://services3.arcgis.com/uknczv4rpevve42E/arcgis/rest/services/California_Cities_and_Identifiers_Blue_Version_view/FeatureServer/2/",
+        outFields: ["*"],
+      });
 
-// Interface for the response from the Places API
-export interface PlacesResponse {
-  results: Place[]; // Array of places
-  total: number; // Total number of results
-}
+      // Load the layers
+      beachAccessPoints.load();
+      coastalBufferLayer.load();
+      coastalCitiesLayer.load();
 
-// Service class for interacting with the Esri Places API
-export class PlacesService {
-  private readonly apiKey: string; // API key for authentication
+      // Query the coastal buffer and beach access points
+      const [coastalBufferResult, beachAccessResult] = await Promise.all([
+        coastalBufferLayer.queryFeatures(),
+        beachAccessPoints.queryFeatures(),
+      ]);
 
-  constructor() {
-    // Get API key from environment variables
-    this.apiKey = import.meta.env.VITE_ARCGIS_API_KEY;
-  }
+      const coastalCitiesResult = [];
 
-  // Method to fetch nearby places based on coordinates
-  async getNearbyPlaces(
-    latitude: number, // Latitude coordinate
-    longitude: number, // Longitude coordinate
-    radius: number = 1000, // Search radius in meters
-    category?: string // Optional category filter
-  ): Promise<PlacesResponse> {
-    try {
-      // Construct the API request URL
-      const response = await fetch(
-        `https://places.api.arcgis.com/places/v1/search?` +
-        new URLSearchParams({
-          lat: latitude.toString(),
-          lon: longitude.toString(),
-          radius: radius.toString(),
-          apiKey: this.apiKey,
-          category: category || ''
-        })
-      );
-
-      // Check for successful response
-      if (!response.ok) {
-        throw new Error('Failed to fetch places data');
+      // Query the coastal cities for each coastal buffer
+      for (const feature of coastalBufferResult.features) {
+        coastalCitiesResult.push(
+          coastalCitiesLayer.queryFeatures({
+            geometry: feature.geometry,
+            spatialRelationship: "intersects",
+            returnGeometry: true,
+            outFields: ["*"],
+          })
+        );
       }
 
-      // Parse and return the response
-      const data = await response.json();
-      return data as PlacesResponse;
-    } catch (error) {
-      // Log and rethrow any errors
-      console.error('Error fetching places:', error);
-      throw error;
-    }
-  }
-
-  // Method to fetch detailed information about a specific place
-  async getPlaceDetails(placeId: string): Promise<Place> {
-    try {
-      // Construct the API request URL
-      const response = await fetch(
-        `https://places.api.arcgis.com/places/v1/details?` +
-        new URLSearchParams({
-          placeId,
-          apiKey: this.apiKey
-        })
-      );
-
-      // Check for successful response
-      if (!response.ok) {
-        throw new Error('Failed to fetch place details');
+      // Query the coastal cities for each beach access point
+      for (const feature of beachAccessResult.features) {
+        coastalCitiesResult.push(
+          coastalCitiesLayer.queryFeatures({
+            geometry: feature.geometry,
+            spatialRelationship: "intersects",
+            returnGeometry: true,
+            outFields: ["*"],
+          })
+        );
       }
 
-      // Parse and return the response
-      const data = await response.json();
-      return data as Place;
-    } catch (error) {
-      // Log and rethrow any errors
-      console.error('Error fetching place details:', error);
-      throw error;
+      // Wait for all coastal cities results
+      const results = await Promise.all(coastalCitiesResult);
+      const allCityFeatures = results.flatMap((r) => r.features);
+
+      // Remove duplicate cities
+      const alreadyExists = new Set<any>();
+      const filteredCityFeatures = allCityFeatures.filter((feature: any) => {
+        const cityName = feature.attributes.CDTFA_CITY;
+
+        if (alreadyExists.has(cityName)) {
+          return false;
+        } else {
+          alreadyExists.add(cityName);
+          return true;
+        }
+      });
+
+      // Create graphics for the coastal cities
+      const coastalCitiesGraphics = createPlaceGraphics(filteredCityFeatures);
+      coastalCitiesGraphicsLayer.addMany(coastalCitiesGraphics);
+
+      // Add the graphics layer to the map
+      layerRef.current = coastalCitiesGraphicsLayer;
+      isLoadingComplete(true);
     }
-  }
+
+    // Load the features
+    loadFeatures();
+  }, [mapRef]);
+
+  return null;
+}
+
+// Create graphics for the coastal cities
+export function createPlaceGraphics(placeFeatures: any) {
+  return placeFeatures.map((placeFeature: any) => {
+    return new Graphic({
+      geometry: placeFeature.geometry,
+      attributes: placeFeature.attributes,
+      symbol: {
+        type: "simple-fill",
+        color: [0, 120, 255, 0.5],
+        outline: {
+          color: [0, 0, 0, 0.6],
+          width: 1,
+        },
+      },
+    });
+  });
 }
 ```
 
-4. Create `src/context/PlacesContext.tsx`:
+4. Create the DisplayCoastalPlaces component in `src/components/DisplayCoastalPlaces.tsx`:
 
 ```tsx
-// Import necessary React hooks and context utilities
-import { createContext, useContext, useState, useEffect } from 'react';
-// Import the PlacesService for API interactions
-import { PlacesService } from '../services/placesService';
+import { useEffect } from "react";
 
-// Interface defining the shape of the context
-interface PlacesContextType {
-  places: Place[]; // Array of places
-  loading: boolean; // Loading state
-  error: string | null; // Error message
-  searchPlaces: (latitude: number, longitude: number) => Promise<void>; // Search function
-  getPlaceDetails: (placeId: string) => Promise<Place>; // Get details function
+// State variables for Display Coastal Places
+interface DisplayPlacesProps {
+  mapRef?: any;
+  layerRef?: any;
 }
 
-// Create the context with undefined as initial value
-const PlacesContext = createContext<PlacesContextType | undefined>(undefined);
+// Display Coastal Places component
+export function DisplayCoastalPlaces({ mapRef, layerRef }: DisplayPlacesProps) {
+  useEffect(() => {
+    const arcgisMap = mapRef.current;
+    if (!arcgisMap) return;
 
-// Provider component that manages places state
-export const PlacesProvider = ({ children }: { children: React.ReactNode }) => {
-  // State variables for managing places data
-  const [places, setPlaces] = useState<Place[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const placesService = new PlacesService();
+    // Add the coastal places layer to the map
+    const coastalPlacesLayer = layerRef.current;
+    if (!coastalPlacesLayer) return;
 
-  // Function to search for places near given coordinates
-  const searchPlaces = async (latitude: number, longitude: number) => {
-    try {
-      setLoading(true);
-      setError(null);
-      // Call the service to get nearby places
-      const response = await placesService.getNearbyPlaces(latitude, longitude);
-      // Update state with new places
-      setPlaces(response.results);
-    } catch (err) {
-      // Handle any errors
-      setError(err instanceof Error ? err.message : 'An error occurred');
-    } finally {
-      // Always reset loading state
-      setLoading(false);
-    }
-  };
+    // Add the layer to the map
+    arcgisMap.map.layers.add(coastalPlacesLayer);
+  }, [mapRef, layerRef]);
 
-  // Function to get detailed information about a place
-  const getPlaceDetails = async (placeId: string) => {
-    try {
-      // Call the service to get place details
-      return await placesService.getPlaceDetails(placeId);
-    } catch (err) {
-      // Throw the error with proper type
-      throw err instanceof Error ? err : new Error('Failed to fetch place details');
-    }
-  };
+  return null;
+}
+```
 
-  // Provide the context value to child components
+5. Create the RenderCalciteUI component in `src/components/RenderCalciteUI.tsx`:
+
+```tsx
+import "@esri/calcite-components/components/calcite-shell-panel";
+import "@esri/calcite-components/components/calcite-combobox";
+import "@esri/calcite-components/components/calcite-combobox-item";
+import "@esri/calcite-components/components/calcite-label";
+import "@esri/calcite-components/components/calcite-panel";
+import "@esri/calcite-components/components/calcite-flow";
+import "@esri/calcite-components/components/calcite-flow-item";
+import "@esri/calcite-components/components/calcite-list";
+import "@esri/calcite-components/components/calcite-notice";
+
+// State variables for Render Calcite UI
+interface CalciteUIProps {
+  mapViewRef?: any;
+  layerRef?: any;
+}
+
+// Render Calcite UI component
+export function RenderCalciteUI({ mapViewRef, layerRef }: CalciteUIProps) {
+  const coastalPlacesLayer = layerRef.current;
   return (
-    <PlacesContext.Provider
-      value={{
-        places,
-        loading,
-        error,
-        searchPlaces,
-        getPlaceDetails
-      }}
-    >
-      {children}
-    </PlacesContext.Provider>
+    <>
+      {/* Render the Calcite UI */}
+      <calcite-shell-panel slot="panel-start" position="start" id="contents">
+        {/* Render the combobox */}
+        <calcite-combobox
+          id="categorySelect"
+          placeholder="Pick a coastal city or town"
+          overlay-positioning="fixed"
+          selection-mode="single"
+          label=""
+          oncalciteComboboxChange={(e: any) => {
+            const selectedValue = e.target.selectedItems[0]?.value;
+            if (selectedValue) {
+              handlePlaceChange(
+                { target: { value: selectedValue } },
+                coastalPlacesLayer,
+                mapViewRef
+              );
+            }
+          }}
+        >
+          {[...coastalPlacesLayer?.graphics?.items]
+            .sort((a, b) =>
+              a.attributes.CDTFA_CITY.localeCompare(b.attributes.CDTFA_CITY)
+            )
+            .map((city: any) => (
+              <calcite-combobox-item
+                key={city.attributes.CDTFA_CITY}
+                value={city.attributes.CDTFA_CITY}
+                heading={city.attributes.CDTFA_CITY}
+              ></calcite-combobox-item>
+            ))}
+        </calcite-combobox>
+        {/* Render the panel */}
+        <calcite-panel>
+          <calcite-flow id="flow">
+            <calcite-flow-item>
+              {/* Render the list */}
+              <calcite-list id="results" label="">
+                {/* Render the notice */}
+                <calcite-notice open>
+                  <div slot="message">
+                    Click on the map to search for nearby places
+                  </div>
+                </calcite-notice>
+              </calcite-list>
+            </calcite-flow-item>
+          </calcite-flow>
+        </calcite-panel>
+      </calcite-shell-panel>
+    </>
   );
-};
+}
 
-// Custom hook for accessing the places context
-export const usePlaces = () => {
-  const context = useContext(PlacesContext);
-  // Throw error if used outside of Provider
-  if (context === undefined) {
-    throw new Error('usePlaces must be used within a PlacesProvider');
+// Handle place change
+export function handlePlaceChange(
+  event: any,
+  coastalPlacesLayer: any,
+  mapViewRef: any
+) {
+  // Get the selected city
+  const selectedCity = event.target.value;
+  if (!selectedCity || !coastalPlacesLayer) return;
+
+  // Find the matching city graphic
+  const cityGraphic = coastalPlacesLayer.graphics.items.find(
+    (graphic: any) => graphic.attributes.CDTFA_CITY === selectedCity
+  );
+
+  // Zoom to the city graphic
+  if (cityGraphic && mapViewRef?.current) {
+    mapViewRef.current.goTo(
+      {
+        target: cityGraphic.geometry,
+        zoom: 12,
+      },
+      {
+        duration: 1000,
+        easing: "ease-in-out",
+      }
+    );
   }
-  return context;
-};
+}
 ```
 
-5. Update `src/App.tsx`:
+6. Create the DisplayOutdoors component in `src/components/DisplayOutdoors.tsx`:
 
 ```tsx
-// Import necessary React hooks and ArcGIS components
-import { useState, useEffect } from 'react';
-import { FeatureLayer } from '@arcgis/core';
-// Import custom components and services
-import { RenderMap } from './components/RenderMap';
-import { CitySelector } from './components/CitySelector';
-import { PlacesProvider, usePlaces } from './context/PlacesContext';
-import { PlacesList } from './components/PlacesList';
-import './App.css';
+import { useEffect } from "react";
+import FetchPlaceParameters from "@arcgis/core/rest/support/FetchPlaceParameters";
+import PlacesQueryParameters from "@arcgis/core/rest/support/PlacesQueryParameters";
+import GraphicsLayer from "@arcgis/core/layers/GraphicsLayer";
+import Circle from "@arcgis/core/geometry/Circle";
+import Graphic from "@arcgis/core/Graphic";
+import * as places from "@arcgis/core/rest/places";
+import "@esri/calcite-components/components/calcite-list-item";
+import "@esri/calcite-components/components/calcite-flow-item";
+import "@esri/calcite-components/components/calcite-icon";
+import "@esri/calcite-components/components/calcite-block";
 
-// URL to your city boundary feature layer
-const CITY_BOUNDARY_LAYER_URL = 'your-city-boundary-layer-url';
+// State variables for Display Outdoors
+interface OutdoorsProps {
+  mapRef?: any;
+  mapViewRef?: any;
+}
 
-// Main content component that handles the UI
-function AppContent() {
-  // State for tracking selected city
-  const [selectedCity, setSelectedCity] = useState('');
-  // Get places context for managing place data
-  const { places, loading, error, searchPlaces } = usePlaces();
-  // Create a feature layer for city boundaries
-  const cityBoundaryLayer = new FeatureLayer({
-    url: CITY_BOUNDARY_LAYER_URL,
-    title: 'City Boundaries'
+// Display Outdoors component
+export function DisplayOutdoors({ mapRef, mapViewRef }: OutdoorsProps) {
+  useEffect(() => {
+    let infoPanel: any;
+    let clickPoint: any;
+    let category = "4d4b7105d754a06377d81259";
+
+    // Create the layers
+    const placesLayer = new GraphicsLayer({
+      id: "placesLayer",
+    });
+
+    const bufferLayer = new GraphicsLayer({
+      id: "bufferLayer",
+    });
+
+    // Get the elements
+    const categorySelect: any = document.getElementById("categorySelect");
+    const resultPanel: any = document.getElementById("results");
+    const flow: any = document.getElementById("flow");
+
+    // Run the places service on the map
+    mapViewRef.current.on("click", async (event: any) => {
+      clearGraphics(placesLayer, bufferLayer, resultPanel, infoPanel);
+      clickPoint = {} as any;
+      clickPoint.type = "point";
+      clickPoint.longitude = Math.round(event.mapPoint.longitude * 1000) / 1000;
+      clickPoint.latitude = Math.round(event.mapPoint.latitude * 1000) / 1000;
+      clickPoint &&
+        showPlaces(
+          clickPoint,
+          bufferLayer,
+          placesLayer,
+          category,
+          resultPanel,
+          infoPanel,
+          mapViewRef,
+          flow
+        );
+    });
+
+    // Run the places service on the selected category
+    categorySelect?.addEventListener("calciteComboboxChange", async () => {
+      clearGraphics(placesLayer, bufferLayer, resultPanel, infoPanel);
+      clickPoint &&
+        showPlaces(
+          clickPoint,
+          bufferLayer,
+          placesLayer,
+          category,
+          resultPanel,
+          infoPanel,
+          mapViewRef,
+          flow
+        );
+    });
+
+    // Add the layers to the map
+    mapRef.current.map.addMany([bufferLayer, placesLayer]);
   });
 
-  // Handler for map clicks to search for places
-  const handleMapClick = async (event: any) => {
-    if (!selectedCity) return;
+  return null;
+}
 
-    try {
-      // Search for places near the clicked location
-      await searchPlaces(event.mapPoint.latitude, event.mapPoint.longitude);
-    } catch (err) {
-      // Log any errors
-      console.error('Error searching places:', err);
-    }
-  };
+// Clear the graphics
+export function clearGraphics(
+  placesLayer: any,
+  bufferLayer: any,
+  resultPanel: any,
+  infoPanel: any
+) {
+  placesLayer?.removeAll();
+  bufferLayer?.removeAll();
+  resultPanel.innerHTML = "";
+  if (infoPanel) infoPanel.remove();
+}
 
-  // Render the main application UI
-  return (
-    <div className="app-container">
-      <div className="sidebar">
-        <h1>SoCal Coastal Explorer</h1>
-        {/* City selector component */}
-        <CitySelector
-          cities={[
-            'Los Angeles',
-            'San Diego',
-            'Santa Barbara',
-            'San Luis Obispo'
-          ]}
-          onCitySelect={(city) => {
-            setSelectedCity(city);
-            // Update map center based on selected city
-            const cityCenters = {
-              'Los Angeles': [-118.24, 34.05],
-              'San Diego': [-117.16, 32.71],
-              'Santa Barbara': [-119.70, 34.42],
-              'San Luis Obispo': [-120.66, 35.28]
-            };
-            // Update map center when city changes
-            mapRef.current.view.center = cityCenters[city];
-          }}
-        />
-        {/* Places list component */}
-        <PlacesList places={places} loading={loading} error={error} />
-      </div>
-      <div className="map-container">
-        {/* Map component with city boundary layer */}
-        <RenderMap
-          cityBoundaryLayer={cityBoundaryLayer}
-          onMapClick={handleMapClick}
-        />
-      </div>
-    </div>
+// Show the places
+export async function showPlaces(
+  clickPoint: any,
+  bufferLayer: any,
+  placesLayer: any,
+  category: any,
+  resultPanel: any,
+  infoPanel: any,
+  mapViewRef: any,
+  flow: any
+) {
+  // Create a circle geometry
+  const circleGeometry = new Circle({
+    center: clickPoint,
+    geodesic: true,
+    numberOfPoints: 100,
+    radius: 500,
+    radiusUnit: "meters",
+  });
+
+  // Create a circle graphic
+  const circleGraphic = new Graphic({
+    geometry: circleGeometry,
+    symbol: {
+      type: "simple-fill",
+      style: "solid",
+      color: [3, 140, 255, 0.1],
+      outline: {
+        width: 1,
+        color: [3, 140, 255],
+      },
+    },
+  });
+
+  // Add the circle graphic to the buffer layer
+  bufferLayer.graphics.add(circleGraphic);
+
+  // Run the places service
+  const placesQueryParameters = new PlacesQueryParameters({
+    categoryIds: [category],
+    radius: 500,
+    point: clickPoint,
+    icon: "png",
+  });
+
+  // Run the places service
+  const results = await places.queryPlacesNearPoint(placesQueryParameters);
+
+  // Tabulate the results
+  tabulateResults(
+    results,
+    placesLayer,
+    resultPanel,
+    infoPanel,
+    mapViewRef,
+    flow
   );
 }
 
-// Root component that provides places context
+// Tabulate the results
+export async function tabulateResults(
+  results: any,
+  placesLayer: any,
+  resultPanel: any,
+  infoPanel: any,
+  mapViewRef: any,
+  flow: any
+) {
+  // Add the results to the list
+  results.results.forEach((placeResult: any) => {
+    addResult(
+      placeResult,
+      placesLayer,
+      resultPanel,
+      infoPanel,
+      mapViewRef,
+      flow
+    );
+  });
+}
+
+// Add the result to the list
+export async function addResult(
+  placeResult: any,
+  placesLayer: any,
+  resultPanel: any,
+  infoPanel: any,
+  mapViewRef: any,
+  flow: any
+) {
+
+  // Add the place graphic to the places layer
+  const placeGraphic = new Graphic({
+    geometry: placeResult.location,
+    symbol: {
+      type: "picture-marker",
+      url: placeResult.icon.url,
+      width: 15,
+      height: 15,
+    },
+  });
+
+  // Add the place graphic to the places layer
+  placesLayer.graphics.add(placeGraphic);
+
+  const infoDiv = document.createElement("calcite-list-item");
+  infoDiv.label = placeResult.name;
+  infoDiv.description = `${placeResult.categories[0].label} - ${Number(
+    (placeResult.distance / 1000).toFixed(1)
+  )} km`;
+
+  // Add the click event to the info div
+  infoDiv.addEventListener("click", async () => {
+    mapViewRef.current.openPopup({
+      title: placeResult.name,
+      location: placeResult.location,
+    });
+
+    // Zoom to the place graphic
+    mapViewRef.current.goTo(placeGraphic);
+
+    // Get the details of the place
+    const fetchPlaceParameters = new FetchPlaceParameters({
+      placeId: placeResult.placeId,
+      requestedFields: ["all"],
+    });
+    getDetails(fetchPlaceParameters, infoPanel, mapViewRef, flow);
+  });
+
+  resultPanel.appendChild(infoDiv);
+}
+
+// Get the details of the place
+export async function getDetails(
+  fetchPlaceParameters: any,
+  infoPanel: any,
+  mapViewRef: any,
+  flow: any
+) {
+  const result = await places.fetchPlace(fetchPlaceParameters);
+  const placeDetails = result.placeDetails;
+
+  // Create the info panel
+  infoPanel = document.createElement("calcite-flow-item");
+  flow.append(infoPanel);
+  infoPanel.heading = placeDetails.name;
+  infoPanel.description = placeDetails.categories[0].label;
+
+  // Set the flow items
+  const flowItems = flow.querySelectorAll("calcite-flow-item");
+
+  flowItems.forEach((item: any) => (item.selected = false));
+
+  infoPanel.selected = true;
+
+  // Set the attributes
+  setAttribute(
+    "Address",
+    "map-pin",
+    placeDetails.address.streetAddress,
+    infoPanel
+  );
+  setAttribute(
+    "Phone",
+    "mobile",
+    placeDetails.contactInfo.telephone,
+    infoPanel
+  );
+  setAttribute(
+    "Email",
+    "email-address",
+    placeDetails.contactInfo.email,
+    infoPanel
+  );
+  setAttribute(
+    "Facebook",
+    "speech-bubble-social",
+    placeDetails.socialMedia.facebookId
+      ? `www.facebook.com/${placeDetails.socialMedia.facebookId}`
+      : null,
+    infoPanel
+  );
+  setAttribute(
+    "X",
+    "speech-bubbles",
+    placeDetails.socialMedia.twitter
+      ? `www.x.com/${placeDetails.socialMedia.twitter}`
+      : null,
+    infoPanel
+  );
+  setAttribute(
+    "Instagram",
+    "camera",
+    placeDetails.socialMedia.instagram
+      ? `www.instagram.com/${placeDetails.socialMedia.instagram}`
+      : null,
+    infoPanel
+  );
+
+  // Add the back event to the info panel
+  infoPanel.addEventListener("calciteFlowItemBack", async () => {
+    mapViewRef.current.closePopup();
+    infoPanel.remove();
+  });
+}
+
+// Set the attribute
+export function setAttribute(
+  heading: any,
+  icon: any,
+  validValue: any,
+  infoPanel: any
+) {
+  // Set the attribute
+  if (validValue) {
+    const element = document.createElement("calcite-block");
+    element.heading = heading;
+    element.description = validValue;
+    const attributeIcon = document.createElement("calcite-icon");
+    attributeIcon.icon = icon;
+    attributeIcon.slot = "icon";
+    attributeIcon.scale = "m";
+    element.appendChild(attributeIcon);
+    infoPanel.appendChild(element);
+  }
+}
+```
+
+7. Update `src/App.tsx`:
+
+```tsx
+import { useRef, useState } from "react";
+import "./App.css";
+import { AuthenticateEsriAPI } from "./components/Authentication";
+import { FetchFeatureLayers } from "./components/FetchLayers";
+import "@esri/calcite-components/components/calcite-shell";
+import { RenderMap } from "./components/RenderMap";
+import { DisplayCoastalPlaces } from "./components/DisplayCoastalPlaces";
+import { RenderCalciteUI } from "./components/RenderCalciteUI";
+import { DisplayOutdoors } from "./components/DisplayOutdoors";
+
+// Main App component
 function App() {
+  // Refs for map and map view
+  const mapRef = useRef<any>(null),
+    mapViewRef = useRef<any>(null),
+    layerRef = useRef<any>(null);
+
+  // State variables for drawing and loading
+  const [isDrawingComplete, setDrawingComplete] = useState<boolean>(false),
+    [isLoadingComplete, setLoadingComplete] = useState<boolean>(false);
+
+  // Handle drawing complete
+  function handleDrawingComplete(complete: boolean) {
+    setDrawingComplete(complete);
+  }
+
+  // Handle loading complete
+  function handleLoadingComplete(complete: boolean) {
+    setLoadingComplete(complete);
+  }
+
+  // Log messages
+  console.log("Authentication complete.");
+
+  // Log messages
+  if (isLoadingComplete) {
+    console.log("Layer fetching complete.");
+  }
+
+  // Log messages
+  if (isDrawingComplete) {
+    console.log("Map rendering complete.");
+  }
+
+  // Log messages
+  if (isLoadingComplete && isDrawingComplete) {
+    console.log("Coastal places display complete.");
+    console.log("Calcite UI rendering complete.");
+    console.log("Outdoor display complete.");
+  }
+
   return (
-    <PlacesProvider>
-      <AppContent />
-    </PlacesProvider>
+    // Return the app
+    <calcite-shell>
+      <>
+        <AuthenticateEsriAPI />
+        <FetchFeatureLayers
+          mapRef={mapRef}
+          layerRef={layerRef}
+          isLoadingComplete={handleLoadingComplete}
+        />
+
+        <RenderMap
+          mapType="arcgis/topographic"
+          mapCenter={[-117.9988, 33.6595]}
+          mapZoom={8}
+          mapRef={mapRef}
+          mapViewRef={mapViewRef}
+          isDrawingComplete={handleDrawingComplete}
+        />
+
+        {isLoadingComplete && isDrawingComplete && (
+          <>
+            <DisplayCoastalPlaces mapRef={mapRef} layerRef={layerRef} />
+            <RenderCalciteUI mapViewRef={mapViewRef} layerRef={layerRef} />
+            <DisplayOutdoors mapRef={mapRef} mapViewRef={mapViewRef} />
+          </>
+        )}
+      </>
+    </calcite-shell>
   );
 }
 
@@ -448,64 +794,24 @@ export default App;
 
 ### Add Styles
 
-1. Create `src/App.css`:
+1. Update `src/App.css`:
 
 ```css
-:root {
-  --primary-color: #0079c1;
-  --secondary-color: #004973;
-  --background-color: #f5f5f5;
-  --border-color: #ddd;
-}
+@import url("https://js.arcgis.com/4.32/@arcgis/core/assets/esri/themes/dark/main.css");
+@import url("https://js.arcgis.com/calcite-components/3.0.3/calcite.css");
+@import url("https://js.arcgis.com/map-components/4.32/arcgis-map-components.css");
 
-* {
+html,
+body,
+#root {
   margin: 0;
   padding: 0;
-  box-sizing: border-box;
-}
-
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-  line-height: 1.6;
-  color: var(--text-color);
-}
-
-.app-container {
-  display: flex;
+  width: 100vw;
   height: 100vh;
-  overflow: hidden;
 }
 
-.sidebar {
-  width: 300px;
-  padding: 20px;
-  background-color: var(--background-color);
-  border-right: 1px solid var(--border-color);
-}
-
-.map-container {
-  flex: 1;
-  position: relative;
-}
-
-.city-selector {
-  width: 100%;
-  padding: 8px;
-  margin-bottom: 20px;
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-}
-
-.places-list {
-  margin-top: 20px;
-  overflow-y: auto;
-}
-
-h1 {
-  margin-top: 0;
-  color: var(--secondary-color);
-  font-size: 1.5em;
-  margin-bottom: 20px;
+arcgis-map {
+  height: 100vh;
 }
 ```
 
@@ -517,59 +823,5 @@ h1 {
 npm run dev
 ```
 
-The application will start at `http://localhost:5173`
-
-## Key Features
-
-- Interactive map with city boundaries
-- City selection dropdown
-- Place discovery through map clicks
-- Responsive design
-- Modern UI with Calcite components
-
-## Code Structure
-
-- `src/components/RenderMap.tsx` - Map component using ArcGIS Map Components
-- `src/App.tsx` - Main application component
-- `src/App.css` - Application styles
-
-## Additional Resources
-
-- [ArcGIS Maps SDK for JavaScript](https://developers.arcgis.com/javascript/)
-- [Calcite Components](https://developers.arcgis.com/calcite-design-system/): Landmarks & Outdoors
-
-Explore the beach towns and cities of Southern California using interactive mapping and location intelligence.
-
-This project uses Esri's ArcGIS Maps SDK for JavaScript (v4.32), Calcite Design System, and Esri’s Places API to visualize public access to beach areas and discover nearby outdoor landmarks.
-
-## Features
-
-- **Select a beach town or city** using a Calcite dropdown panel
-- **Zoom to the city boundary polygon** with accurate feature layer data
-- **Click anywhere inside the polygon** to find landmarks and outdoor POIs (using Esri’s Places service)
-- **Filter out duplicate polygons** for better performance and visual clarity
-- **Unit tested with Vitest**, including map logic and component behavior
-- **CI/CD** setup with GitHub Actions
-
-## Tech Stack
-
-- [ArcGIS Maps SDK for JavaScript (v4.32)](https://developers.arcgis.com/javascript/)
-- [Calcite Components](https://developers.arcgis.com/calcite-design-system/)
-- [Esri Places Service](https://developers.arcgis.com/rest/places/)
-- React + TypeScript
-- Vitest (unit testing)
-- GitHub Actions (CI)
-
-## Getting Started
-
-```bash
-# Install dependencies
-npm install
-
-# Run the app
-npm run dev
-
-# Run tests
-npm run test
-```
+2. Go to `http://localhost:5173`
 
