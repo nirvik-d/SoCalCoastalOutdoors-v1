@@ -1,23 +1,27 @@
-# SoCal Coastal Explorer
+# SoCal Coastal Outdoors Map
 
-This sample demonstrates how to create an interactive mapping application that explores beach towns and cities of Southern California using the ArcGIS Maps SDK for JavaScript and Calcite Design System.
+A web application providing interactive mapping for Southern California coastal areas using ArcGIS Maps SDK for JavaScript.
 
-## Use Case
+## Features
 
-This application allows users to:
+- **Interactive Mapping**: Dynamic map visualization for Southern California coastal regions
+- **Custom Layers**: Feature layers and graphics layers for detailed data visualization
+- **Authentication**: Secure ArcGIS API key management
+- **Modern UI**: Clean and intuitive user interface with navigation controls
+- **Reactive Components**: React-based components for map rendering and authentication
+- **Environment Variables**: Secure API key management
 
-- Select a city from a dropdown menu
-- View city boundaries on an interactive map
-- Click within city boundaries to discover nearby points of interest
-- View detailed information about discovered places
+## Screenshots
+
+*Interactive Southern California coastal map*
 
 ## Prerequisites
 
-- Node.js v18 or higher
-- npm
-- Basic knowledge of React and TypeScript
+- NodeJS
+- Vite
+- ArcGIS API Key (set in environment variables)
 
-## Instructions
+## Detailed Implementation Guide
 
 ### Create a New Project
 
@@ -825,3 +829,25 @@ npm run dev
 
 2. Go to `http://localhost:5173`
 
+## Usage
+
+1. **View the Map**
+   - Open the application to see the Southern California coastal map
+   - The map displays detailed coastal features
+   - Use the zoom control in top-right to navigate
+
+2. **Explore Features**
+   - The map includes multiple layers of coastal data
+   - Feature layers provide detailed information
+   - Graphics layers enhance visualization
+
+3. **Authentication**
+   - The application securely handles ArcGIS API authentication
+   - API key is loaded from environment variables
+   - Authentication is handled automatically
+
+4. **Map Navigation**
+   - Use standard map controls:
+     - Zoom in/out with the top-right control
+     - Pan to view different areas
+     - Click to interact with map features
