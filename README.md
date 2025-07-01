@@ -13,6 +13,8 @@ A web application providing interactive mapping for Southern California coastal 
 
 ## Screenshots
 
+<img width="959" alt="image" src="https://github.com/user-attachments/assets/23260934-ca9d-450d-b70e-f884f938d567" />
+
 *Interactive Southern California coastal map*
 
 ## Prerequisites
